@@ -53,6 +53,9 @@ func BuildActivationPrompt(items []todo_list.Item) string {
 	sb.WriteString("当前待办列表：\n")
 	for i, item := range items {
 		fmt.Fprintf(&sb, "%d. id=%s 内容：%s 来源：%s", i+1, item.ID, item.Content, item.Source)
+		if item.Context != "" {
+			fmt.Fprintf(&sb, " 上下文：%s", item.Context)
+		}
 		if item.TargetType != "" && item.TargetID != 0 {
 			fmt.Fprintf(&sb, " 回复目标：%s/%d", item.TargetType, item.TargetID)
 		}

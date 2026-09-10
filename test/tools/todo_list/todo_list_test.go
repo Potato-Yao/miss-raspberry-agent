@@ -57,6 +57,28 @@ func TestVersionIncrementsOnAdd(t *testing.T) {
 	}
 }
 
+// TestStorePersistsContext verifies that the optional Context supplied by a producer survives
+// Add/List so the agent prompt can include it.
+func TestStorePersistsContext(t *testing.T) {
+	store := todo_list.NewStore()
+	store.Add(todo_list.Item{
+		Content: "提醒他交作业",
+		Context: "对方是班长，昨天刚催过一次，语气可以轻松些",
+	})
+	store.Add(todo_list.Item{Content: "无上下文"})
+
+	items := store.List()
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+	if items[0].Context != "对方是班长，昨天刚催过一次，语气可以轻松些" {
+		t.Errorf("context not preserved, got %q", items[0].Context)
+	}
+	if items[1].Context != "" {
+		t.Errorf("item without context should stay empty, got %q", items[1].Context)
+	}
+}
+
 func TestTodoListToolActions(t *testing.T) {
 	store := todo_list.NewStore()
 
