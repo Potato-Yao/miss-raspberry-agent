@@ -74,8 +74,10 @@ docker logs -f napcat        # first run prints the WebUI login token
 
 - Open <http://localhost:6099/webui>, log in with the token printed in the logs, then
   scan the QR code to log in your QQ account.
-- In the WebUI under 网络配置, add a **OneBot11 "WebSocket 服务器"** connection on port
-  `3001`. Leave the access token empty unless you set `NAPCAT_ACCESS_TOKEN`.
+- The OneBot11 **WebSocket 服务器** on port `3001` is already provided by the tracked
+  `napcat/config/onebot11.json`, so no manual WebUI network setup is needed. Its `token`
+  is empty; if you set `NAPCAT_ACCESS_TOKEN`, set the same value there (or in the
+  per-account `onebot11_<qq>.json` that NapCat writes).
 
 On SELinux hosts (e.g. Fedora) the compose bind mounts use the `:z` label so the
 container can read `./napcat/`. No further action is needed.
@@ -140,8 +142,9 @@ ssh -L 6099:127.0.0.1:6099 -L 3001:127.0.0.1:3001 user@server
 # then open http://localhost:6099/webui on your machine
 ```
 
-Complete the QR login and add the **WebSocket 服务器** on port `3001` as in the local
-steps. The QQ session persists in `./napcat/QQ` across restarts.
+Complete the QR login as in the local steps; the WebSocket 服务器 on port `3001` comes
+from the tracked `napcat/config/onebot11.json`, so no manual network setup is needed. The
+QQ session persists in `./napcat/QQ` across restarts.
 
 ### 3. Build the agent
 
@@ -184,6 +187,8 @@ environment (it also tolerates a `.env` in the working directory).
 
 - Keep ports bound to `127.0.0.1` as in `compose.yaml`; NapCat's WebUI has no strong
   built-in auth and must not be exposed publicly. Use the SSH tunnel instead.
+- The tracked `napcat/config/onebot11.json` ships with an empty WS `token`. If you enable
+  one, keep it in the gitignored per-account `onebot11_<qq>.json`, not in the tracked file.
 - `MODEL_API_KEY` and `NAPCAT_ACCESS_TOKEN` live only in `.env` (gitignored). Never put
   real secrets in committed files.
 - Keep the bot's QQ account safe: the session in `./napcat/QQ` is sensitive and is also
