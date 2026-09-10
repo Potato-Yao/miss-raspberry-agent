@@ -138,7 +138,7 @@ func NewScheduleTaskTool(store *scheduler.Store, current SourceProvider) tool.Ba
 	}
 	t, err := utils.InferTool(
 		"schedule_task",
-		"定时任务管理：create 创建定时任务（触发时间到了之后，任务内容会自动交给 agent 执行并回复结果），list 查看全部定时任务，cancel 取消指定任务。"+
+		"定时任务管理：当用户提出“X点提醒我”“每周日8点做某事”“10分钟后...”“每月30日...”等需要到点再执行的请求时，应使用 create 创建定时任务并回复已创建；触发时间到了之后任务内容会自动交给 agent 执行并回复结果。list 查看全部定时任务，cancel 取消指定任务。"+
 			"创建时必须通过 type 指定触发类型，并用对应的 ASCII 参数描述时间：once 用 datetime（如 2026-09-01 10:00）；relative 用 minutes/hours/days（如 10 分钟后就写 minutes=10）；daily 用 time（如 time=\"08:00\"）；weekly 用 weekday（英文星期，如 weekday=\"Sat\"）和 time；monthly 用 day_of_month（如 day_of_month=30）和 time；yearly 用 date（如 date=\"04-24\"）和 time。"+
 			"一次 create 只创建一条定时任务：如果用户要求多个星期几或多个时间（例如每周六和每周日12:00和12:10），必须拆成多条定时任务分别创建（周六12:00、周六12:10、周日12:00、周日12:10 共4条）。",
 		fn,

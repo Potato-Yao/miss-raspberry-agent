@@ -15,6 +15,7 @@ import (
 type Item struct {
 	ID         string `json:"id"`
 	Content    string `json:"content"`
+	Context    string `json:"context,omitempty"`     // extra context supplied by the producer to help the agent craft a better reply
 	Source     string `json:"source,omitempty"`      // human-readable description of the message source
 	TargetType string `json:"target_type,omitempty"` // private=private chat, group=group chat
 	TargetID   int64  `json:"target_id,omitempty"`   // reply target: the user QQ number for private chat, the group number for group chat

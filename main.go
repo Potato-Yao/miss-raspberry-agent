@@ -10,13 +10,17 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/joho/godotenv"
 
 	"miss-raspberry-agent/internal/agent/main_agent"
 	"miss-raspberry-agent/internal/config"
+	"miss-raspberry-agent/internal/message"
 	"miss-raspberry-agent/internal/napcat"
+	transporthttp "miss-raspberry-agent/internal/transport/http"
+	"miss-raspberry-agent/internal/transport/http/handler"
 )
 
 func main() {
@@ -68,7 +72,41 @@ func run() error {
 	}
 	defer client.Stop()
 
+	// Expose the HTTP API that lets callers push messages into the same todo queue.
+	messageService := message.NewService(agent.Queue())
+	router := transporthttp.NewRouter(handler.NewMessageHandler(messageService), cfg.HTTP.APIToken)
+	server := transporthttp.NewServer(cfg.HTTP.Addr, router)
+
+	serverErr := make(chan error, 1)
+	go func() {
+		log.Printf("[main] HTTP API listening on %s", cfg.HTTP.Addr)
+		serverErr <- server.Start()
+	}()
+
+	agentDone := make(chan struct{})
+	go func() {
+		agent.Run(ctx)
+		close(agentDone)
+	}()
+
 	log.Println("[main] main_agent started, polling its todo queue...")
-	agent.Run(ctx)
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			return fmt.Errorf("http server: %w", err)
+		}
+		return nil
+	case <-agentDone:
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("[main] http server shutdown: %v", err)
+	}
+	if err := <-serverErr; err != nil {
+		return fmt.Errorf("http server: %w", err)
+	}
 	return nil
 }

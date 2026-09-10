@@ -533,6 +533,7 @@ Tentative API shape:
 ```http
 GET  /healthz
 
+POST /api/v1/agents/main/messages
 POST /api/v1/agents/:role/chat
 POST /api/v1/agents/:role/chat/stream
 ```
@@ -547,6 +548,22 @@ Use:
 - Stable project-owned response/error structures.
 
 Do not encode internal Go/Eino implementation details into URLs.
+
+### API Documentation
+
+`API.md` at the repository root is the single source of truth for the public HTTP API. It must
+document every exposed endpoint's description, request shape, response shape, status codes, and a
+curl example.
+
+Whenever API-related code changes, update `API.md` in the same change. This includes, but is not
+limited to:
+
+- Adding, removing, renaming, or moving an endpoint.
+- Changing request/response fields, types, requiredness, or defaults.
+- Changing status codes, authentication, or error bodies.
+- Adding a new supported value for an existing field (e.g. a new `platform`).
+
+Do not let `API.md` drift from the actual routes registered in `internal/transport/http`.
 
 ---
 
@@ -713,6 +730,7 @@ When modifying this repository:
 11. Keep new interfaces minimal.
 12. Run formatting and tests after code changes.
 13. Explain any significant architectural deviation from this file.
+14. Update `API.md` in the same change whenever API-related code changes (see HTTP Conventions).
 
 ---
 

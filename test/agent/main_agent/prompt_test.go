@@ -28,3 +28,29 @@ func TestBuildActivationPromptEmpty(t *testing.T) {
 		t.Errorf("empty todo list prompt should mention 空, got:\n%s", prompt)
 	}
 }
+
+// TestBuildActivationPromptIncludesContext verifies that a producer-supplied Context is rendered
+// next to the item so the agent can craft a better reply.
+func TestBuildActivationPromptIncludesContext(t *testing.T) {
+	items := []todo_list.Item{
+		{
+			ID:         "item-1",
+			Content:    "明天下午的会别忘了",
+			Context:    "用户刚出差回来，可能没看到群公告",
+			Source:     "API(平台=qq,目标=123)",
+			TargetType: "private",
+			TargetID:   123,
+			CreatedAt:  1700000000,
+		},
+		{ID: "item-2", Content: "无上下文", Source: "私聊(用户QQ=456)"},
+	}
+
+	prompt := main_agent.BuildActivationPrompt(items)
+	if !strings.Contains(prompt, "上下文：用户刚出差回来，可能没看到群公告") {
+		t.Errorf("prompt should contain the item context, got:\n%s", prompt)
+	}
+	// The item without context must not get an empty 上下文 label.
+	if strings.Count(prompt, "上下文：") != 1 {
+		t.Errorf("expected exactly one 上下文 label, got:\n%s", prompt)
+	}
+}

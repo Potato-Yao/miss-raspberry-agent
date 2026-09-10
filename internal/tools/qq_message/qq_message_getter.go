@@ -188,7 +188,7 @@ func NewQQMessageGetter(provider HistoryProvider) tool.BaseTool {
 	}
 	t, err := utils.InferTool(
 		"qq_message_getter", // tool name, used by the LLM to invoke it
-		"获取指定QQ用户或群聊的文本消息历史：可按条数（count）或时间范围（start_time/end_time）获取，返回按时间倒序的消息列表",
+		"获取指定QQ用户或群聊的文本消息历史：可按条数（count）或时间范围（start_time/end_time）获取，返回按时间倒序的消息列表。当需要回顾某段对话的上下文时使用",
 		fn,
 	)
 	if err != nil {
