@@ -1,4 +1,11 @@
 .idea
 .env
 .DS_Store
-napcat/
+__pycache__/
+
+# Ignore all NapCat runtime data (QQ session, caches, per-account config)
+# except the default OneBot11 config, which is tracked for reproducible setup.
+napcat/*
+!napcat/config/
+napcat/config/*
+!napcat/config/onebot11.json
