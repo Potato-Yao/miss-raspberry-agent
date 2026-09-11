@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/tidwall/gjson"
 	zero "github.com/wdvxdr1123/ZeroBot"
@@ -46,6 +47,9 @@ type NapcatClient struct {
 	// agent and is wired up before Start.
 	todoList *todo_list.Store
 
+	// directory is the in-memory reverse index of group members, loaded at startup.
+	directory *MemberDirectory
+
 	// Outgoing: messages to send (Agent -> NapCat)
 	Outgoing chan Message
 
@@ -58,11 +62,12 @@ type NapcatClient struct {
 // DefaultConfig.
 func DefaultConfig() *NapcatClientConfig {
 	return &NapcatClientConfig{
-		WebSocketURL:  "ws://127.0.0.1:3001",
-		AccessToken:   "",
-		NickName:      []string{"bot"},
-		CommandPrefix: "/",
-		SuperUsers:    []int64{},
+		WebSocketURL:             "ws://127.0.0.1:3001",
+		AccessToken:              "",
+		NickName:                 []string{"bot"},
+		CommandPrefix:            "/",
+		SuperUsers:               []int64{},
+		DirectoryRefreshInterval: defaultDirectoryRefreshInterval,
 	}
 }
 
@@ -71,11 +76,15 @@ func NewClient(cfg *NapcatClientConfig) *NapcatClient {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
+	if cfg.DirectoryRefreshInterval <= 0 {
+		cfg.DirectoryRefreshInterval = defaultDirectoryRefreshInterval
+	}
 
 	return &NapcatClient{
-		config:   cfg,
-		Outgoing: make(chan Message, 100),
-		done:     make(chan struct{}),
+		config:    cfg,
+		directory: NewMemberDirectory(),
+		Outgoing:  make(chan Message, 100),
+		done:      make(chan struct{}),
 	}
 }
 
@@ -135,6 +144,9 @@ func (c *NapcatClient) Start() error {
 		})
 	}()
 
+	// Load and periodically refresh the group member directory once a bot connects.
+	go c.groupSyncLoop()
+
 	log.Println("[Napcat] Client started")
 	return nil
 }
@@ -153,6 +165,82 @@ func (c *NapcatClient) Stop() {
 	close(c.Outgoing)
 
 	log.Println("[Napcat] Client stopped")
+}
+
+// SyncGroupMembers loads the bot's group list and each group's member list into
+// the in-memory directory. It returns an error when no bot is connected or the
+// group list cannot be fetched; a failure for an individual group is logged and
+// skipped so the rest of the directory is still usable.
+func (c *NapcatClient) SyncGroupMembers(ctx context.Context) error {
+	var bot *zero.Ctx
+	zero.RangeBot(func(_ int64, zb *zero.Ctx) bool {
+		bot = zb
+		return false
+	})
+	if bot == nil {
+		return errors.New("napcat: no bot connected")
+	}
+
+	rsp := bot.CallActionWithContext(ctx, "get_group_list", zero.Params{})
+	if rsp.RetCode != 0 {
+		return fmt.Errorf("napcat: get_group_list failed (retcode=%d, message=%s, wording=%s)", rsp.RetCode, rsp.Message, rsp.Wording)
+	}
+	groupIDs := ParseGroupList(rsp.Data)
+
+	groupMembers := make(map[int64][]int64, len(groupIDs))
+	for _, groupID := range groupIDs {
+		memberRsp := bot.CallActionWithContext(ctx, "get_group_member_list", zero.Params{"group_id": groupID})
+		if memberRsp.RetCode != 0 {
+			log.Printf("[Napcat] get_group_member_list failed for group %d (retcode=%d), skipping", groupID, memberRsp.RetCode)
+			continue
+		}
+		groupMembers[groupID] = ParseGroupMemberList(memberRsp.Data)
+	}
+
+	c.directory.Replace(BuildMemberGroups(groupMembers))
+	log.Printf("[Napcat] group member directory loaded: %d groups, %d members, %d associations",
+		len(groupIDs), c.directory.MemberCount(), c.directory.EdgeCount())
+	return nil
+}
+
+// groupSyncLoop keeps the in-memory group member directory up to date: it retries
+// the initial load until it succeeds, then refreshes on the configured interval.
+// It exits when the client stops.
+func (c *NapcatClient) groupSyncLoop() {
+	retryTicker := time.NewTicker(2 * time.Second)
+	defer retryTicker.Stop()
+	for {
+		select {
+		case <-c.done:
+			return
+		case <-retryTicker.C:
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		err := c.SyncGroupMembers(ctx)
+		cancel()
+		if err != nil {
+			log.Printf("[Napcat] group member sync failed, retrying: %v", err)
+			continue
+		}
+		break
+	}
+
+	refreshTicker := time.NewTicker(c.config.DirectoryRefreshInterval)
+	defer refreshTicker.Stop()
+	for {
+		select {
+		case <-c.done:
+			return
+		case <-refreshTicker.C:
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			err := c.SyncGroupMembers(ctx)
+			cancel()
+			if err != nil {
+				log.Printf("[Napcat] periodic group member sync failed: %v", err)
+			}
+		}
+	}
 }
 
 // SendMessage sends a private message (called by the Agent).
