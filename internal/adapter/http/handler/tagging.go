@@ -51,6 +51,7 @@ func (h *TaggingHandler) RegisterSet(c *gin.Context) {
 		case errors.Is(err, tagging.ErrInvalidTagSet), errors.Is(err, tagging.ErrDuplicateTagName):
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		default:
+			_ = c.Error(err)
 			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "internal error"})
 		}
 		return
@@ -77,6 +78,7 @@ func (h *TaggingHandler) Tag(c *gin.Context) {
 		case errors.Is(err, tagging.ErrInvalidTagSet):
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		default:
+			_ = c.Error(err)
 			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "internal error"})
 		}
 		return
