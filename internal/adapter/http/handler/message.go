@@ -50,6 +50,7 @@ func (h *MessageHandler) Send(c *gin.Context) {
 		case errors.Is(err, messaging.ErrInvalidMessage):
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		default:
+			_ = c.Error(err)
 			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "internal error"})
 		}
 		return

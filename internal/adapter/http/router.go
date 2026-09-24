@@ -16,7 +16,9 @@ import (
 // the bearer token.
 func NewRouter(messageHandler *handler.MessageHandler, taggingHandler *handler.TaggingHandler, healthHandler *handler.HealthHandler, apiToken string) *gin.Engine {
 	router := gin.New()
-	router.Use(gin.Logger(), gin.Recovery())
+	// ErrorLogger must wrap Recovery so a panic that becomes a 500 is logged with request
+	// context; Recovery still prints the stack trace.
+	router.Use(gin.Logger(), middleware.ErrorLogger(), gin.Recovery())
 
 	router.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, dto.HealthResponse{Status: "ok"})
